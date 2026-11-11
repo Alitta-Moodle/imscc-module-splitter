@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>IMSCC Module Splitter</title>
+<style>
+body{font-family:Segoe UI,Arial,sans-serif;margin:0;background:#f5f6f8;color:#1b1b1b}
+header{background:#002676;color:#fff;padding:16px 28px}header h1{margin:0;font-size:22px}
+main{max-width:1000px;margin:24px auto;padding:0 20px}
+.card{background:#fff;border:1px solid #d9dce3;border-radius:10px;padding:20px;margin-bottom:20px}
+button{background:#002676;color:#fff;border:0;border-radius:6px;padding:10px 22px;font-size:15px;margin-top:14px;cursor:pointer}
+table{border-collapse:collapse;width:100%;font-size:14px}th,td{border:1px solid #ddd;padding:6px 8px;text-align:left;vertical-align:top}
+th{background:#eef0f6}.hint{color:#555;font-size:13px}.err{background:#fde2e2;border-color:#e08b8b}
+a.dl{display:inline-block;background:#1a7f37;color:#fff;padding:8px 14px;border-radius:6px;text-decoration:none;font-weight:600}
+.bad{color:#a40000;font-weight:600}.ok{color:#1a7f37;font-weight:600}
+</style></head><body>
+<header><h1>IMSCC Module Splitter — one Canvas package per module</h1></header>
+<main>
+<form class="card" method="post" action="/load" enctype="multipart/form-data">
+  <label for="imscc"><b>1. Course export (.imscc)</b></label><br>
+  <input id="imscc" type="file" name="imscc" accept=".imscc,.zip" required>
+  <button type="submit">Read modules</button>
+  <p class="hint">Runs on this computer only. Nothing is uploaded anywhere.</p>
+</form>
+{% if error %}<div class="card err"><b>Could not run:</b> {{ error }}<details><summary>details</summary><pre>{{ trace }}</pre></details></div>{% endif %}
+{% if modules %}
+<form class="card" method="post" action="/split">
+  <input type="hidden" name="job" value="{{ job }}"><input type="hidden" name="src" value="{{ src }}">
+  <b>2. Choose modules</b> <span class="hint">({{ src }})</span>
+  <p><label><input type="checkbox" onclick="document.querySelectorAll('.m').forEach(c=>c.checked=this.checked)"> Select all</label></p>
+  <table><tr><th></th><th>#</th><th>Module</th><th>Items</th></tr>
+  {% for m in modules %}<tr><td><input class="m" type="checkbox" name="m" value="{{ m.index }}" id="m{{ m.index }}"
+     {% if chosen is defined and m.index in chosen %}checked{% endif %}></td>
+     <td>{{ m.index }}</td><td><label for="m{{ m.index }}">{{ m.title }}</label></td><td>{{ m.refs()|length }}</td></tr>{% endfor %}
+  </table>
+  <p><label><input type="radio" name="combined" value="0" checked> One package per module</label>
+     &nbsp; <label><input type="radio" name="combined" value="1"> One package with all ticked modules</label></p>
+  <button type="submit">Create packages</button>
+</form>
+{% endif %}
+{% if results %}
+<div class="card">
+  <b>3. Download</b> &nbsp; <a class="dl" href="/download/{{ job }}/all.zip">Download all (zip)</a>
+  <table style="margin-top:12px"><tr><th>Package</th><th>Contents</th><th>Check</th><th></th></tr>
+  {% for name, info in results %}<tr>
+    <td><b>{{ name }}</b><br><span class="hint">{{ info.modules|join(', ') }}</span></td>
+    <td>{% for k, v in info["items"].items() if v %}{{ v }} {{ k }}{% if not loop.last %}, {% endif %}{% endfor %}<br>
+        <span class="hint">{{ info.media }} media files · {{ (info.size/1024)|round|int }} KB</span></td>
+    <td>{% if info.errors %}<span class="bad">{{ info.errors|length }} error(s)</span><ul>{% for e in info.errors %}<li>{{ e }}</li>{% endfor %}</ul>
+        {% else %}<span class="ok">Valid package</span>{% endif %}
+        {% if info.warnings %}<details><summary>{{ info.warnings|length }} note(s)</summary><ul>{% for w in info.warnings %}<li>{{ w }}</li>{% endfor %}</ul></details>{% endif %}</td>
+    <td><a class="dl" href="/download/{{ job }}/{{ name }}">Download</a></td></tr>{% endfor %}
+  </table>
+  <p class="hint">Import in Canvas: Settings › Import Course Content › Canvas Course Export Package › <b>Select specific content</b>.</p>
+</div>
+{% endif %}
+</main></body></html>
